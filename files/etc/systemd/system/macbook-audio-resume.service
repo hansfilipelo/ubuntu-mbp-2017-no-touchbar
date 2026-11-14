@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-initialise MacBook CS8409 audio after resume
+After=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/macbook-audio-resume.sh
+TimeoutStartSec=30
+
+[Install]
+WantedBy=suspend.target

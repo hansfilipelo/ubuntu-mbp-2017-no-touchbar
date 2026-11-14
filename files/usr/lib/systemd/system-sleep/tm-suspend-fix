@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# systemd-sleep hook for MacBookPro14,1.
+# User processes are frozen while this runs, so keep it fast: no fixed sleeps here.
+TB_SWITCH=/sys/bus/pci/devices/0000:04:00.0
+
+case $1 in
+  pre)
+    /usr/local/bin/tm-suspend-fix.sh
+    modprobe -r applespi
+    modprobe -r brcmfmac_wcc brcmfmac
+
+    # Thunderbolt: after a resume the firmware may leave the whole Thunderbolt chain
+    # without power (config space reads 0xffff). Resuming it again makes the kernel wait
+    # ~65 s for it ("04:00.0: not ready 65535ms after resume; giving up") with the screen
+    # off. If it is already dead, remove it so there is nothing to wait for.
+    if [ -e "$TB_SWITCH/config" ] && \
+       [ "$(od -An -tx2 -N2 "$TB_SWITCH/config" | tr -d ' ')" = "ffff" ]; then
+        echo 1 > "$TB_SWITCH/remove"
+        echo "$(date) Removed unpowered Thunderbolt switch before sleep." >> /tmp/suspend.log
+    fi
+    echo "$(date) Sleep complete." >> /tmp/suspend.log
+    ;;
+  post)
+    # NetworkManager picks up the reloaded Wi-Fi device and reconnects on its own.
+    modprobe -a brcmfmac brcmfmac_wcc
+    modprobe applespi
+    echo "$(date) Resume complete." >> /tmp/suspend.log
+    ;;
+esac
