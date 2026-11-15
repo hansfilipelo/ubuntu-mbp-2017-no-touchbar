@@ -122,10 +122,13 @@ brings the time until the desktop responds down to about 0.5 s.
 
 ### Slow wake: Thunderbolt (~65 s with the display off) — *untested fix*
 
-With the `thunderbolt` driver blacklisted, the Mac's firmware can leave the whole
-Thunderbolt chain unpowered after a resume. Its PCI config space then reads `0xffff`,
-while Linux still lists the devices as active. On the *next* resume the kernel waits on
-them:
+The Thunderbolt chip (Alpine Ridge, behind both USB-C ports) loses power in S3. With the
+`thunderbolt` driver blacklisted, nothing powers it back on. On the **first** wake after
+boot the whole chain is gone: every device reports `Unable to change power state …
+device inaccessible`, its USB controller (`07:00.0`) is removed, and USB-C data devices
+disconnect. Charging keeps working. This wake is still quick. The dead devices keep
+reading `0xffff`, while Linux still lists the switch as active. On the **second** wake
+the kernel waits on them:
 
 ```
 pcieport 0000:04:00.0: not ready 1023ms after resume; waiting
@@ -143,10 +146,11 @@ Keeping the ports out of runtime power management (`power/control=on`) doesn't h
 the firmware powers them off, not Linux. The installer removes an earlier udev rule that
 tried this.
 
-Side effect: USB-C *data* (not charging) may stop working after the first
-suspend until the next reboot. Removing the Thunderbolt blacklist and letting the
-real driver manage the chip may fix both issues, but could bring back the suspend
-problems the original guide was avoiding. Test it on its own.
+USB-C *data* (not charging) stops working after the first suspend until the
+next reboot, whether or not this fix is installed. The `thunderbolt` driver is what
+would normally power the chip back on. Removing the blacklist might fix both problems,
+but could bring back whatever suspend problem the original guide blacklisted it for.
+The guide doesn't say what that was, so test it on its own.
 
 ## Troubleshooting
 
